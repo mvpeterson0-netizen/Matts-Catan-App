@@ -42,28 +42,4 @@ const sum = L.addHands(L.emptyHand(), L.payout(props, 6));
 assert.strictEqual(sum.brick, 3);
 assert.strictEqual(L.addHands(sum, L.payout(props, 6), -1).brick, 0);
 
-// ---- Board ----
-const code = 'O10 W2 L9 / G12 B6 W4 G10 / L9 G11 D L3 O8 / B3 W11 L4 G5 / O5 B8 W6';
-const pb = L.parseBoard(code);
-assert.ok(pb.board, pb.error);
-assert.strictEqual(pb.board.length, 19);
-assert.deepStrictEqual(pb.board[2], { res: 'lumber', num: 9 });
-assert.strictEqual(pb.board[9].res, 'desert');
-assert.strictEqual(L.boardToCode(pb.board), code);
-assert.ok(L.parseBoard('L6 B8').error, 'wrong count rejected');
-assert.ok(L.parseBoard(code.replace('O10', 'O7')).error, '7 is not a valid number');
-assert.ok(L.parseBoard(code.replace('O10', 'X10')).error);
-assert.strictEqual(L.parseBoard(code.toLowerCase().replace(/ \//g, ',')).board.length, 19, 'case/separators tolerant');
-assert.deepStrictEqual(pb.warnings, [], 'sample is a standard distribution');
-const bad = L.parseBoard(code.replace('O10', 'O9'));
-assert.ok(bad.warnings.length > 0, 'misread number is flagged');
-
-const lay = L.boardLayout(36);
-assert.strictEqual(lay.hexes.length, 19);
-assert.strictEqual(lay.vertices.length, 54, '54 intersections on a standard board');
-assert.ok(lay.vertices.every((v) => v.hexIdx.length >= 1 && v.hexIdx.length <= 3));
-assert.strictEqual(lay.vertices.filter((v) => v.hexIdx.length === 3).length, 24);
-assert.strictEqual(lay.vertices.filter((v) => v.hexIdx.length === 2).length, 12);
-assert.strictEqual(lay.vertices.filter((v) => v.hexIdx.length === 1).length, 18);
-
 console.log('All logic tests passed');

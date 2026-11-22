@@ -5,7 +5,7 @@
   const cap = (s) => s[0].toUpperCase() + s.slice(1);
   const ICON = { lumber: '🌲', brick: '🧱', wool: '🐑', grain: '🌾', ore: '⛰️' };
 
-  const fresh = () => ({ name: '', board: null, editBoard: false, hexes: [], props: [], rolls: [], hand: L.emptyHand(), gathered: L.emptyHand(), nextId: 1, nextHexId: 1 });
+  const fresh = () => ({ name: '', hexes: [], props: [], rolls: [], hand: L.emptyHand(), gathered: L.emptyHand(), nextId: 1, nextHexId: 1 });
   let S;
   try { S = Object.assign(fresh(), JSON.parse(localStorage.getItem(KEY) || '{}')); } catch (e) { S = fresh(); }
   // Migrate older saves where hexes were stored inline on each spot
@@ -22,29 +22,6 @@
   const hexById = (id) => S.hexes.find((h) => h.id === id);
   // Spots with their hex objects filled in (robber lives on the hex, shared by every spot touching it)
   const resolved = () => S.props.map((p) => ({ id: p.id, type: p.type, hexes: p.hexIds.map(hexById).filter(Boolean) }));
-  // ---- Board (19 hexes in a fixed layout; spots live on its 54 intersections) ----
-  const GEO = L.boardLayout(36);
-  const vmap = new Map(GEO.vertices.map((v) => [v.key, v]));
-  const hexIdsForVertex = (key) => (vmap.get(key) ? vmap.get(key).hexIdx : []).map((i) => S.board && S.board[i] && S.board[i].id).filter(Boolean);
-
-  // Make S.hexes (used for payouts) match the board; keep robber flags; refresh spots' hexes.
-  function syncHexes() {
-    const keep = new Set();
-    S.board.forEach((b) => {
-      if (L.RESOURCES.includes(b.res) && b.num) {
-        let h = b.id && hexById(b.id);
-        if (!h) { b.id = S.nextHexId++; h = { id: b.id, blocked: false }; S.hexes.push(h); }
-        h.res = b.res; h.num = b.num; keep.add(h.id);
-      } else delete b.id;
-    });
-    S.hexes = S.hexes.filter((h) => keep.has(h.id));
-    S.props.forEach((p) => { if (p.vkey) p.hexIds = hexIdsForVertex(p.vkey); });
-  }
-  function setBoard(board) {
-    S.board = board.map((b) => ({ res: b.res, num: b.num }));
-    S.hexes = []; S.props = []; S.editBoard = false;
-    syncHexes();
-  }
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} };
 
   const resPill = (r, n) => `<span class="res ${r}">${ICON[r]} ${n}</span>`;
@@ -117,7 +94,7 @@
       const chips = p.hexIds.map(hexById).filter(Boolean).map((h) => `<button class="chip ${h.res} ${h.blocked ? 'blocked' : ''}" data-hid="${h.id}">${ICON[h.res]} ${numBadge(h.num)}</button>`).join('');
       d.innerHTML = `<div class="top"><span>${p.type === 'city' ? '🏙️ City (2×)' : '🏠 Settlement (1×)'}</span>
         <span class="acts">${p.type === 'settlement' ? `<button class="ghost" data-up="${p.id}">Upgrade</button>` : ''}
-        ${p.vkey ? '' : `<button class="ghost" data-edit="${p.id}">Edit</button>`}<button class="ghost" data-del="${p.id}">✕</button></span></div><div>${chips}</div>`;
+        <button class="ghost" data-edit="${p.id}">Edit</button><button class="ghost" data-del="${p.id}">✕</button></span></div><div>${chips}</div>`;
       list.appendChild(d);
     });
     list.querySelectorAll('.chip').forEach((c) => c.addEventListener('click', () => {
@@ -133,7 +110,6 @@
     }));
     list.querySelectorAll('[data-edit]').forEach((b) => b.addEventListener('click', () => openDialog(+b.dataset.edit)));
 
-    $('#addProp').hidden = !!S.board; $('#propHint').hidden = !!S.board;
     const t = L.payTable(resolved());
     const keys = Object.keys(t);
     $('#payTable').innerHTML = keys.length
@@ -228,96 +204,6 @@
     save(); dlg.close(); render();
   });
 
-  // ---- Board UI ----
-  const FILL = { lumber: '#2f7d32', brick: '#b23a1e', wool: '#8bc34a', grain: '#e0b020', ore: '#6d7b8a', desert: '#e8d9a8', none: '#d8d8d8' };
-  const flash = (el, msg) => { el.textContent = msg; };
-
-  function renderBoard() {
-    const area = $('#boardArea');
-    if (!S.board) {
-      area.innerHTML = `<div class="card"><b>Set up the board</b>
-        <p class="hint">Send a photo of the board to Claude in chat and paste the code it gives you here. Or tap “Blank board” and enter hexes by hand.</p>
-        <textarea id="codeIn" placeholder="O10 W2 L9 / G12 B6 W4 G10 / L9 G11 D L3 O8 / B3 W11 L4 G5 / O5 B8 W6"></textarea>
-        <div id="codeMsg" class="err"></div>
-        <div class="btns"><button class="primary" id="loadCode">Load board</button><button class="ghost" id="blankBoard">Blank board</button></div></div>`;
-      $('#loadCode').addEventListener('click', () => {
-        const r = L.parseBoard($('#codeIn').value);
-        if (r.error) return flash($('#codeMsg'), r.error);
-        setBoard(r.board); S.boardWarn = r.warnings; save(); render();
-      });
-      $('#blankBoard').addEventListener('click', () => { setBoard(Array.from({ length: 19 }, () => ({ res: null, num: null }))); S.editBoard = true; save(); render(); });
-      return;
-    }
-    const spotAt = (key) => S.props.find((p) => p.vkey === key);
-    const hexes = GEO.hexes.map((g) => {
-      const b = S.board[g.idx];
-      const fill = FILL[b.res || 'none'];
-      const blocked = b.id && hexById(b.id) && hexById(b.id).blocked;
-      const label = b.num ? `<circle cx="${g.cx}" cy="${g.cy}" r="13" fill="${blocked ? '#555' : '#fff7e0'}" stroke="#2b2118" stroke-width="1"/>
-        <text x="${g.cx}" y="${g.cy + 5}" text-anchor="middle" font-size="14" font-weight="700" fill="${blocked ? '#fff' : (b.num === 6 || b.num === 8) ? '#c0281c' : '#2b2118'}">${blocked ? '🦹' : b.num}</text>`
-        : `<text x="${g.cx}" y="${g.cy + 5}" text-anchor="middle" font-size="${b.res === 'desert' ? 11 : 16}" fill="#2b2118">${b.res === 'desert' ? 'desert' : '?'}</text>`;
-      return `<g data-h="${g.idx}" style="cursor:pointer"><polygon points="${g.corners.map((c) => c.join(',')).join(' ')}" fill="${fill}" stroke="#fffaf0" stroke-width="2"/>${label}</g>`;
-    }).join('');
-    const verts = S.editBoard ? '' : GEO.vertices.map((v) => {
-      const sp = spotAt(v.key);
-      if (!sp) return `<circle data-v="${v.key}" cx="${v.x}" cy="${v.y}" r="12" fill="rgba(255,255,255,.0)" stroke="rgba(43,33,24,.25)" stroke-width="1" style="cursor:pointer"/>`;
-      return `<g data-v="${v.key}" style="cursor:pointer"><circle cx="${v.x}" cy="${v.y}" r="${sp.type === 'city' ? 15 : 12}" fill="#fff" stroke="#7a3b1d" stroke-width="2.5"/>
-        <text x="${v.x}" y="${v.y + 6}" text-anchor="middle" font-size="${sp.type === 'city' ? 18 : 15}">${sp.type === 'city' ? '🏙️' : '🏠'}</text></g>`;
-    }).join('');
-    const warn = (S.boardWarn || []).length ? `<div class="warn"><b>Check the board code:</b> ${S.boardWarn.join('; ')}. A misread hex means wrong payouts. Tap Edit board to fix.</div>` : '';
-    area.innerHTML = `${warn}<svg viewBox="-12 -12 ${GEO.width + 24} ${GEO.height + 24}">${hexes}${verts}</svg>
-      <p class="hint">${S.editBoard ? '<b>Edit mode:</b> tap a hex to change its resource/number.' : 'Tap an intersection: once = 🏠 settlement, again = 🏙️ city, again = remove. Tap a number to move the robber.'}</p>
-      <div class="btns"><button class="ghost" id="toggleEdit">${S.editBoard ? 'Done editing' : 'Edit board'}</button>
-      <button class="ghost" id="copyCode">Copy code</button><button class="ghost" id="copyLink">Copy link</button><button class="ghost" id="replaceBoard">New board</button></div>`;
-
-    area.querySelectorAll('[data-v]').forEach((el) => el.addEventListener('click', () => {
-      const key = el.dataset.v;
-      const sp = spotAt(key);
-      if (!sp) S.props.push({ id: S.nextId++, type: 'settlement', vkey: key, hexIds: hexIdsForVertex(key) });
-      else if (sp.type === 'settlement') sp.type = 'city';
-      else S.props = S.props.filter((p) => p !== sp);
-      save(); render();
-    }));
-    area.querySelectorAll('[data-h]').forEach((el) => el.addEventListener('click', () => {
-      const idx = +el.dataset.h;
-      if (S.editBoard) return openHexDialog(idx);
-      const b = S.board[idx];
-      if (b.id) { const h = hexById(b.id); h.blocked = !h.blocked; save(); render(); }
-    }));
-    $('#toggleEdit').addEventListener('click', () => { S.editBoard = !S.editBoard; if (!S.editBoard) S.boardWarn = L.validateBoard(S.board); save(); render(); });
-    const copy = (txt, btn) => { (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).then(() => { btn.textContent = 'Copied ✓'; }).catch(() => prompt('Copy this:', txt)); };
-    $('#copyCode').addEventListener('click', (e) => copy(L.boardToCode(S.board), e.target));
-    $('#copyLink').addEventListener('click', (e) => copy(location.origin + location.pathname + '#b=' + encodeURIComponent(L.boardToCode(S.board)), e.target));
-    $('#replaceBoard').addEventListener('click', () => { if (confirm('Load a different board? This clears your spots.')) { S.board = null; S.props = []; S.hexes = []; S.boardWarn = []; save(); render(); } });
-  }
-
-  // Edit one hex
-  const hxDlg = $('#hexDialog');
-  let hx = null;
-  function renderHexDialog() {
-    const opts = [...L.RESOURCES, 'desert'];
-    $('#hxRes').innerHTML = opts.map((r) => `<button type="button" class="${hx.res === r ? 'on' : ''}" data-r="${r}">${r === 'desert' ? '🏜️ Desert' : ICON[r] + ' ' + cap(r)}</button>`).join('');
-    $('#hxRes').querySelectorAll('button').forEach((b) => b.addEventListener('click', () => { hx.res = b.dataset.r; if (hx.res === 'desert') hx.num = null; renderHexDialog(); }));
-    $('#hxNum').innerHTML = hx.res === 'desert' ? '<span class="muted">The desert has no number.</span>'
-      : L.NUMBERS.map((n) => `<button type="button" class="${(n === 6 || n === 8 ? 'r6 ' : '') + (hx.num === n ? 'on' : '')}" data-n="${n}">${n}</button>`).join('');
-    $('#hxNum').querySelectorAll('button').forEach((b) => b.addEventListener('click', () => { hx.num = +b.dataset.n; renderHexDialog(); }));
-  }
-  function openHexDialog(idx) { hx = Object.assign({ idx }, { res: S.board[idx].res, num: S.board[idx].num }); renderHexDialog(); hxDlg.showModal(); }
-  $('#hxCancel').addEventListener('click', () => hxDlg.close());
-  $('#hxSave').addEventListener('click', () => {
-    const b = S.board[hx.idx];
-    b.res = hx.res; b.num = hx.res === 'desert' ? null : hx.num;
-    syncHexes(); save(); hxDlg.close(); render();
-  });
-
-  // Shared board link (#b=CODE)
-  const m = location.hash.match(/b=([^&]+)/);
-  if (m) {
-    let r; try { r = L.parseBoard(decodeURIComponent(m[1])); } catch (e) { r = { error: 'bad link' }; }
-    if (r.board && (!S.board || !S.props.length || confirm('Load the shared board? This clears your current spots.'))) { setBoard(r.board); S.boardWarn = r.warnings; save(); }
-    history.replaceState(null, '', location.pathname);
-  }
-
   // ---- Hand ----
   const COSTS = {
     Road: { lumber: 1, brick: 1 },
@@ -371,7 +257,7 @@
     buildPad();
     $('#rollCount').textContent = `${S.rolls.length} rolls`;
     $('#rollLog').innerHTML = S.rolls.slice().reverse().slice(0, 40).map((r) => `<span class="${r.n === 7 ? 'seven' : ''}">${r.n}</span>`).join('');
-    renderBoard(); renderProps(); renderHand(); renderStats();
+    renderProps(); renderHand(); renderStats();
   }
   render();
 })();
