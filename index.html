@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#7a3b1d">
+<title>Matt's Catan Tracker</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <h1>Catan Tracker</h1>
+  <input id="playerName" aria-label="Your name" placeholder="Your name">
+</header>
+
+<nav id="tabs">
+  <button data-tab="roll" class="active">Roll</button>
+  <button data-tab="props">My Spots</button>
+  <button data-tab="hand">Hand</button>
+  <button data-tab="stats">Stats</button>
+</nav>
+
+<main>
+  <!-- ROLL -->
+  <section id="tab-roll" class="tab active">
+    <p class="hint">Tap the number that was rolled. You'll see what you collect.</p>
+    <div id="rollPad"></div>
+    <div id="rollResult" class="card" hidden></div>
+    <div class="row">
+      <button id="undoRoll" class="ghost">Undo last roll</button>
+      <span id="rollCount" class="muted"></span>
+    </div>
+    <h3>Roll history</h3>
+    <div id="rollLog" class="log"></div>
+  </section>
+
+  <!-- PROPERTIES -->
+  <section id="tab-props" class="tab">
+    <p class="hint">Add each settlement or city with the 1–3 hexes touching it. Tap a hex chip to mark the robber on it.</p>
+    <div id="propList"></div>
+    <button id="addProp" class="primary">+ Add settlement / city</button>
+    <h3>Payout table</h3>
+    <div id="payTable" class="card"></div>
+  </section>
+
+  <!-- HAND -->
+  <section id="tab-hand" class="tab">
+    <p class="hint">Your cards. Rolls add automatically; use −/+ for trades, builds, robber steals.</p>
+    <div id="hand"></div>
+    <div id="handTotal" class="card"></div>
+    <h3>Quick build</h3>
+    <div class="builds" id="builds"></div>
+    <button id="resetHand" class="ghost">Clear hand</button>
+  </section>
+
+  <!-- STATS -->
+  <section id="tab-stats" class="tab">
+    <div id="statsBody"></div>
+    <button id="newGame" class="danger">Start new game</button>
+  </section>
+</main>
+
+<dialog id="propDialog">
+  <form method="dialog" id="propForm">
+    <h2 id="dlgTitle">Add spot</h2>
+    <div class="seg">
+      <label><input type="radio" name="ptype" value="settlement" checked> Settlement (1×)</label>
+      <label><input type="radio" name="ptype" value="city"> City (2×)</label>
+    </div>
+    <div id="hexRows"></div>
+    <button type="button" id="addHexRow" class="ghost">+ another hex</button>
+    <div class="row">
+      <button type="button" id="dlgCancel" class="ghost">Cancel</button>
+      <button type="submit" id="dlgSave" class="primary">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<script src="logic.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
