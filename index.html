@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#7a3b1d">
 <title>Matt's Catan Tracker</title>
-<link rel="stylesheet" href="style.css?v=5">
+<link rel="stylesheet" href="style.css?v=6">
 </head>
 <body>
 <header>
@@ -36,7 +36,8 @@
 
   <!-- PROPERTIES -->
   <section id="tab-props" class="tab">
-    <p class="hint">Add each settlement or city and tap the hexes touching it. A hex you enter once is reused for every spot. Tap a hex chip to put the robber on it.</p>
+    <div id="boardArea"></div>
+    <p class="hint" id="propHint">Add each settlement or city and tap the hexes touching it. A hex you enter once is reused for every spot. Tap a hex chip to put the robber on it.</p>
     <div id="propList"></div>
     <button id="addProp" class="primary">+ Add settlement / city</button>
     <h3>Payout table</h3>
@@ -60,6 +61,18 @@
   </section>
 </main>
 
+<dialog id="hexDialog">
+  <div>
+    <h2>Edit hex</h2>
+    <div id="hxRes" class="pick"></div>
+    <div id="hxNum" class="pick"></div>
+    <div class="row">
+      <button type="button" id="hxCancel" class="ghost">Cancel</button>
+      <button type="button" id="hxSave" class="primary">Save</button>
+    </div>
+  </div>
+</dialog>
+
 <dialog id="propDialog">
   <div id="propForm">
     <h2 id="dlgTitle">Add spot</h2>
@@ -81,7 +94,7 @@
   </div>
 </dialog>
 
-<script src="logic.js?v=5"></script>
-<script src="app.js?v=5"></script>
+<script src="logic.js?v=6"></script>
+<script src="app.js?v=6"></script>
 </body>
 </html>
