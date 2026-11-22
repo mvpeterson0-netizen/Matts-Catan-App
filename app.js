@@ -5,9 +5,23 @@
   const cap = (s) => s[0].toUpperCase() + s.slice(1);
   const ICON = { lumber: '🌲', brick: '🧱', wool: '🐑', grain: '🌾', ore: '⛰️' };
 
-  const fresh = () => ({ name: '', props: [], rolls: [], hand: L.emptyHand(), gathered: L.emptyHand(), nextId: 1 });
+  const fresh = () => ({ name: '', hexes: [], props: [], rolls: [], hand: L.emptyHand(), gathered: L.emptyHand(), nextId: 1, nextHexId: 1 });
   let S;
   try { S = Object.assign(fresh(), JSON.parse(localStorage.getItem(KEY) || '{}')); } catch (e) { S = fresh(); }
+  // Migrate older saves where hexes were stored inline on each spot
+  S.props.forEach((p) => {
+    if (p.hexes && !p.hexIds) {
+      p.hexIds = p.hexes.map((h) => {
+        let x = S.hexes.find((e) => e.res === h.res && e.num === h.num);
+        if (!x) { x = { id: S.nextHexId++, res: h.res, num: h.num, blocked: !!h.blocked }; S.hexes.push(x); }
+        return x.id;
+      });
+      delete p.hexes;
+    }
+  });
+  const hexById = (id) => S.hexes.find((h) => h.id === id);
+  // Spots with their hex objects filled in (robber lives on the hex, shared by every spot touching it)
+  const resolved = () => S.props.map((p) => ({ id: p.id, type: p.type, hexes: p.hexIds.map(hexById).filter(Boolean) }));
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} };
 
   const resPill = (r, n) => `<span class="res ${r}">${ICON[r]} ${n}</span>`;
@@ -28,7 +42,7 @@
   function buildPad() {
     const pad = $('#rollPad');
     pad.innerHTML = '';
-    const table = L.payTable(S.props);
+    const table = L.payTable(resolved());
     for (let n = 2; n <= 12; n++) {
       const b = document.createElement('button');
       const paid = table[n];
@@ -40,7 +54,7 @@
   }
 
   function doRoll(n) {
-    const gained = L.payout(S.props, n);
+    const gained = L.payout(resolved(), n);
     S.rolls.push({ n, gained });
     S.hand = L.addHands(S.hand, gained);
     S.gathered = L.addHands(S.gathered, gained);
@@ -77,15 +91,15 @@
     S.props.forEach((p) => {
       const d = document.createElement('div');
       d.className = 'prop';
-      const chips = p.hexes.map((h, i) => `<button class="chip ${h.res} ${h.blocked ? 'blocked' : ''}" data-pid="${p.id}" data-i="${i}">${ICON[h.res]} ${numBadge(h.num)}</button>`).join('');
+      const chips = p.hexIds.map(hexById).filter(Boolean).map((h) => `<button class="chip ${h.res} ${h.blocked ? 'blocked' : ''}" data-hid="${h.id}">${ICON[h.res]} ${numBadge(h.num)}</button>`).join('');
       d.innerHTML = `<div class="top"><span>${p.type === 'city' ? '🏙️ City (2×)' : '🏠 Settlement (1×)'}</span>
         <span class="acts">${p.type === 'settlement' ? `<button class="ghost" data-up="${p.id}">Upgrade</button>` : ''}
         <button class="ghost" data-edit="${p.id}">Edit</button><button class="ghost" data-del="${p.id}">✕</button></span></div><div>${chips}</div>`;
       list.appendChild(d);
     });
     list.querySelectorAll('.chip').forEach((c) => c.addEventListener('click', () => {
-      const p = S.props.find((x) => x.id == c.dataset.pid);
-      p.hexes[c.dataset.i].blocked = !p.hexes[c.dataset.i].blocked;
+      const h = hexById(+c.dataset.hid);
+      h.blocked = !h.blocked;
       save(); render();
     }));
     list.querySelectorAll('[data-up]').forEach((b) => b.addEventListener('click', () => {
@@ -96,7 +110,7 @@
     }));
     list.querySelectorAll('[data-edit]').forEach((b) => b.addEventListener('click', () => openDialog(+b.dataset.edit)));
 
-    const t = L.payTable(S.props);
+    const t = L.payTable(resolved());
     const keys = Object.keys(t);
     $('#payTable').innerHTML = keys.length
       ? keys.map((n) => `<div class="handrow"><span class="big">${n}</span><span>${pillsFor(t[n])}</span></div>`).join('')
@@ -104,36 +118,50 @@
   }
 
   const dlg = $('#propDialog');
-  function hexRow(h = { res: 'lumber', num: 6 }) {
-    const row = document.createElement('div');
-    row.className = 'hexrow';
-    row.innerHTML = `<select class="res">${L.RESOURCES.map((r) => `<option value="${r}" ${r === h.res ? 'selected' : ''}>${ICON[r]} ${cap(r)}</option>`).join('')}</select>
-      <select class="num">${L.NUMBERS.map((n) => `<option ${n === h.num ? 'selected' : ''}>${n}</option>`).join('')}</select>
-      <button type="button" class="ghost rm">✕</button>`;
-    row.querySelector('.rm').addEventListener('click', () => { if ($('#hexRows').children.length > 1) row.remove(); });
-    row.dataset.blocked = h.blocked ? '1' : '';
-    return row;
+  let draft = { type: 'settlement', sel: [], res: null };
+  const chipHtml = (h, extra = '') => `<button type="button" class="chip ${h.res} ${extra}" data-hid="${h.id}">${ICON[h.res]} ${numBadge(h.num)}</button>`;
+
+  function renderDialog() {
+    document.querySelectorAll('#typePick button').forEach((b) => b.classList.toggle('on', b.dataset.type === draft.type));
+    $('#selCount').textContent = `(${draft.sel.length}/3 selected)`;
+    $('#hexPick').innerHTML = S.hexes.length
+      ? S.hexes.slice().sort((a, b) => a.res.localeCompare(b.res) || a.num - b.num).map((h) => chipHtml(h, draft.sel.includes(h.id) ? 'sel' : '')).join('')
+      : '<span class="muted">No hexes yet — add one below.</span>';
+    $('#hexPick').querySelectorAll('.chip').forEach((c) => c.addEventListener('click', () => {
+      const id = +c.dataset.hid;
+      if (draft.sel.includes(id)) draft.sel = draft.sel.filter((x) => x !== id);
+      else if (draft.sel.length < 3) draft.sel.push(id);
+      renderDialog();
+    }));
+    $('#resPick').innerHTML = L.RESOURCES.map((r) => `<button type="button" class="${draft.res === r ? 'on' : ''}" data-res="${r}">${ICON[r]} ${cap(r)}</button>`).join('');
+    $('#resPick').querySelectorAll('button').forEach((b) => b.addEventListener('click', () => { draft.res = b.dataset.res; renderDialog(); }));
+    $('#numPick').innerHTML = L.NUMBERS.map((n) => `<button type="button" class="${n === 6 || n === 8 ? 'r6' : ''}" data-n="${n}">${n}</button>`).join('');
+    $('#numPick').querySelectorAll('button').forEach((b) => b.addEventListener('click', () => {
+      if (!draft.res) { $('#resPick').animate([{ transform: 'translateX(-4px)' }, { transform: 'translateX(4px)' }, { transform: 'none' }], 200); return; }
+      const num = +b.dataset.n;
+      let h = S.hexes.find((x) => x.res === draft.res && x.num === num);
+      if (!h) { h = { id: S.nextHexId++, res: draft.res, num, blocked: false }; S.hexes.push(h); save(); }
+      if (!draft.sel.includes(h.id) && draft.sel.length < 3) draft.sel.push(h.id);
+      draft.res = null;
+      renderDialog();
+    }));
   }
+
   function openDialog(id) {
     editingId = id || null;
     const p = id ? S.props.find((x) => x.id === id) : null;
     $('#dlgTitle').textContent = p ? 'Edit spot' : 'Add spot';
-    document.querySelector(`input[name=ptype][value=${p ? p.type : 'settlement'}]`).checked = true;
-    $('#hexRows').innerHTML = '';
-    (p ? p.hexes : [undefined, undefined, undefined]).forEach((h) => $('#hexRows').appendChild(hexRow(h)));
+    draft = { type: p ? p.type : 'settlement', sel: p ? p.hexIds.slice() : [], res: null };
+    renderDialog();
     dlg.showModal();
   }
   $('#addProp').addEventListener('click', () => openDialog());
-  $('#addHexRow').addEventListener('click', () => { if ($('#hexRows').children.length < 3) $('#hexRows').appendChild(hexRow()); });
+  $('#typePick').querySelectorAll('button').forEach((b) => b.addEventListener('click', () => { draft.type = b.dataset.type; renderDialog(); }));
   $('#dlgCancel').addEventListener('click', () => dlg.close());
-  $('#propForm').addEventListener('submit', (e) => {
-    e.preventDefault();
-    const hexes = [...$('#hexRows').children].map((r) => ({
-      res: r.querySelector('.res').value, num: +r.querySelector('.num').value, blocked: !!r.dataset.blocked,
-    }));
-    const type = document.querySelector('input[name=ptype]:checked').value;
-    if (editingId) { const p = S.props.find((x) => x.id === editingId); p.type = type; p.hexes = hexes; }
-    else S.props.push({ id: S.nextId++, type, hexes });
+  $('#dlgSave').addEventListener('click', () => {
+    if (!draft.sel.length) { $('#hexPick').animate([{ transform: 'translateX(-4px)' }, { transform: 'translateX(4px)' }, { transform: 'none' }], 200); return; }
+    if (editingId) { const p = S.props.find((x) => x.id === editingId); p.type = draft.type; p.hexIds = draft.sel.slice(); }
+    else S.props.push({ id: S.nextId++, type: draft.type, hexIds: draft.sel.slice() });
     save(); dlg.close(); render();
   });
 
@@ -172,7 +200,7 @@
     const max = Math.max(1, ...Object.values(h));
     const bars = Object.keys(h).map((n) => `<div title="${n}: ${h[n]}"><span>${h[n]}</span><i style="height:${(h[n] / max) * 80}%"></i></div>`).join('');
     const labels = Object.keys(h).map((n) => `<div style="font-size:12px;text-align:center;flex:1">${n}<br><span class="muted">${(nums.length * L.pips(+n) / 36).toFixed(1)}</span></div>`).join('');
-    const exp = L.expectedPerRoll(S.props);
+    const exp = L.expectedPerRoll(resolved());
     const expTotal = L.total(exp);
     $('#statsBody').innerHTML = `
       <div class="card"><b>${nums.length}</b> rolls · <b>${nums.filter((n) => n === 7).length}</b> sevens<br>

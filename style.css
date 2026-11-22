@@ -56,6 +56,14 @@ display:flex;flex-direction:column;align-items:center;justify-content:center;pos
 .bar em{width:100%;border-top:2px dashed #999;display:block}
 dialog{border:0;border-radius:16px;padding:16px;width:min(94vw,440px);background:var(--card);color:var(--ink)}
 dialog::backdrop{background:rgba(0,0,0,.5)}
-.seg{display:flex;gap:16px;margin:10px 0}
-.hexrow{display:flex;gap:8px;margin:8px 0}
-.hexrow select{flex:1;padding:10px;font-size:16px;border-radius:8px;border:1px solid var(--line);background:#fff}
+.seg2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}
+.seg2 button{padding:12px;border-radius:12px;border:2px solid var(--line);background:#fff;font-size:16px}
+.seg2 button.on{border-color:var(--brand);background:#fde9d2;font-weight:700}
+.seg2 small{display:block;color:var(--muted)}
+.pick{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
+.pick button{min-width:52px;height:48px;border-radius:12px;border:2px solid var(--line);background:#fff;font-size:18px;font-weight:700;padding:0 10px}
+.pick button.on{border-color:var(--brand);background:#fde9d2}
+.pick button.r6{color:#c0281c}
+#hexPick{display:flex;flex-wrap:wrap;gap:8px;min-height:44px}
+#hexPick .chip{margin:0;font-size:16px;padding:8px 12px;border:3px solid transparent}
+#hexPick .chip.sel{border-color:#2b2118;box-shadow:0 0 0 2px #fff inset}
