@@ -131,19 +131,25 @@
       const id = +c.dataset.hid;
       if (draft.sel.includes(id)) draft.sel = draft.sel.filter((x) => x !== id);
       else if (draft.sel.length < 3) draft.sel.push(id);
+      draft.queue = draft.queue.slice(0, 3 - draft.sel.length);
       renderDialog();
     }));
-    const room = 3 - draft.sel.length - draft.queue.length;
-    $('#resPick').innerHTML = L.RESOURCES.map((r) => `<button type="button" ${room > 0 ? '' : 'disabled'} data-res="${r}">${ICON[r]} ${cap(r)}</button>`).join('');
-    $('#resPick').querySelectorAll('button').forEach((b) => b.addEventListener('click', () => { draft.queue.push(b.dataset.res); renderDialog(); }));
-    $('#queue').innerHTML = draft.queue.length
-      ? `Now tap a number for: ` + draft.queue.map((r, i) => `<button type="button" class="chip ${r}" data-qi="${i}">${ICON[r]} ${i === 0 ? '← next' : ''} ✕</button>`).join('')
-      : '<span class="muted">Tap up to 3 resources, then a number for each in order.</span>';
-    $('#queue').querySelectorAll('button').forEach((b) => b.addEventListener('click', () => { draft.queue.splice(+b.dataset.qi, 1); renderDialog(); }));
+    const free = 3 - draft.sel.length; // slots still free on this spot
+    $('#resPick').innerHTML = L.RESOURCES.map((r) => {
+      const k = draft.queue.indexOf(r);
+      return `<button type="button" class="${k >= 0 ? 'on' : ''}" data-res="${r}">${ICON[r]} ${cap(r)}${k >= 0 ? ` <small>#${k + 1}</small>` : ''}</button>`;
+    }).join('');
+    $('#resPick').querySelectorAll('button').forEach((b) => b.addEventListener('click', () => {
+      const r = b.dataset.res;
+      if (draft.queue.includes(r)) draft.queue = draft.queue.filter((x) => x !== r);
+      else if (draft.queue.length < free) draft.queue.push(r);
+      else shake('#resPick');
+      renderDialog();
+    }));
     $('#numPick').innerHTML = L.NUMBERS.map((n) => `<button type="button" class="${n === 6 || n === 8 ? 'r6' : ''}" data-n="${n}">${n}</button>`).join('');
     $('#numPick').querySelectorAll('button').forEach((b) => b.addEventListener('click', () => {
-      if (!draft.queue.length) { $('#resPick').animate([{ transform: 'translateX(-4px)' }, { transform: 'translateX(4px)' }, { transform: 'none' }], 200); return; }
-      const res = draft.queue.shift();
+      if (!draft.queue.length) { shake('#resPick'); return; }
+      const res = draft.queue.shift(); // numbers fill the chosen resources in the order tapped
       const num = +b.dataset.n;
       let h = S.hexes.find((x) => x.res === res && x.num === num);
       if (!h) { h = { id: S.nextHexId++, res, num, blocked: false }; S.hexes.push(h); save(); }
@@ -151,6 +157,7 @@
       renderDialog();
     }));
   }
+  const shake = (sel) => $(sel).animate([{ transform: 'translateX(-4px)' }, { transform: 'translateX(4px)' }, { transform: 'none' }], 200);
 
   function openDialog(id) {
     editingId = id || null;
