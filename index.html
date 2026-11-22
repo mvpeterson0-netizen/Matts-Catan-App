@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#7a3b1d">
 <title>Matt's Catan Tracker</title>
-<link rel="stylesheet" href="style.css?v=4">
+<link rel="stylesheet" href="style.css?v=5">
 </head>
 <body>
 <header>
@@ -68,11 +68,12 @@
       <button type="button" data-type="city">🏙️ City<small>2×</small></button>
     </div>
     <h3>Hexes touching it <span id="selCount" class="muted"></span></h3>
-    <div id="hexPick"></div>
-    <h3>New hexes? Tap resources (up to 3), then numbers</h3>
+    <div id="slots"></div>
+    <p class="hint" id="slotHint"></p>
     <div id="resPick" class="pick"></div>
-    <div id="queue" class="queue"></div>
     <div id="numPick" class="pick"></div>
+    <h3>Reuse a hex you already entered</h3>
+    <div id="hexPick"></div>
     <div class="row">
       <button type="button" id="dlgCancel" class="ghost">Cancel</button>
       <button type="button" id="dlgSave" class="primary">Save</button>
@@ -80,7 +81,7 @@
   </div>
 </dialog>
 
-<script src="logic.js?v=4"></script>
-<script src="app.js?v=4"></script>
+<script src="logic.js?v=5"></script>
+<script src="app.js?v=5"></script>
 </body>
 </html>
