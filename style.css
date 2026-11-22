@@ -67,3 +67,4 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
 #hexPick{display:flex;flex-wrap:wrap;gap:8px;min-height:44px}
 #hexPick .chip{margin:0;font-size:16px;padding:8px 12px;border:3px solid transparent}
 #hexPick .chip.sel{border-color:#2b2118;box-shadow:0 0 0 2px #fff inset}
+.queue{margin:6px 0;min-height:40px}.queue .chip{margin:0 6px 0 0;border:0}

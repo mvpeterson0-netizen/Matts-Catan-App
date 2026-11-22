@@ -118,7 +118,7 @@
   }
 
   const dlg = $('#propDialog');
-  let draft = { type: 'settlement', sel: [], res: null };
+  let draft = { type: 'settlement', sel: [], queue: [] };
   const chipHtml = (h, extra = '') => `<button type="button" class="chip ${h.res} ${extra}" data-hid="${h.id}">${ICON[h.res]} ${numBadge(h.num)}</button>`;
 
   function renderDialog() {
@@ -133,16 +133,21 @@
       else if (draft.sel.length < 3) draft.sel.push(id);
       renderDialog();
     }));
-    $('#resPick').innerHTML = L.RESOURCES.map((r) => `<button type="button" class="${draft.res === r ? 'on' : ''}" data-res="${r}">${ICON[r]} ${cap(r)}</button>`).join('');
-    $('#resPick').querySelectorAll('button').forEach((b) => b.addEventListener('click', () => { draft.res = b.dataset.res; renderDialog(); }));
+    const room = 3 - draft.sel.length - draft.queue.length;
+    $('#resPick').innerHTML = L.RESOURCES.map((r) => `<button type="button" ${room > 0 ? '' : 'disabled'} data-res="${r}">${ICON[r]} ${cap(r)}</button>`).join('');
+    $('#resPick').querySelectorAll('button').forEach((b) => b.addEventListener('click', () => { draft.queue.push(b.dataset.res); renderDialog(); }));
+    $('#queue').innerHTML = draft.queue.length
+      ? `Now tap a number for: ` + draft.queue.map((r, i) => `<button type="button" class="chip ${r}" data-qi="${i}">${ICON[r]} ${i === 0 ? '← next' : ''} ✕</button>`).join('')
+      : '<span class="muted">Tap up to 3 resources, then a number for each in order.</span>';
+    $('#queue').querySelectorAll('button').forEach((b) => b.addEventListener('click', () => { draft.queue.splice(+b.dataset.qi, 1); renderDialog(); }));
     $('#numPick').innerHTML = L.NUMBERS.map((n) => `<button type="button" class="${n === 6 || n === 8 ? 'r6' : ''}" data-n="${n}">${n}</button>`).join('');
     $('#numPick').querySelectorAll('button').forEach((b) => b.addEventListener('click', () => {
-      if (!draft.res) { $('#resPick').animate([{ transform: 'translateX(-4px)' }, { transform: 'translateX(4px)' }, { transform: 'none' }], 200); return; }
+      if (!draft.queue.length) { $('#resPick').animate([{ transform: 'translateX(-4px)' }, { transform: 'translateX(4px)' }, { transform: 'none' }], 200); return; }
+      const res = draft.queue.shift();
       const num = +b.dataset.n;
-      let h = S.hexes.find((x) => x.res === draft.res && x.num === num);
-      if (!h) { h = { id: S.nextHexId++, res: draft.res, num, blocked: false }; S.hexes.push(h); save(); }
+      let h = S.hexes.find((x) => x.res === res && x.num === num);
+      if (!h) { h = { id: S.nextHexId++, res, num, blocked: false }; S.hexes.push(h); save(); }
       if (!draft.sel.includes(h.id) && draft.sel.length < 3) draft.sel.push(h.id);
-      draft.res = null;
       renderDialog();
     }));
   }
@@ -151,7 +156,7 @@
     editingId = id || null;
     const p = id ? S.props.find((x) => x.id === id) : null;
     $('#dlgTitle').textContent = p ? 'Edit spot' : 'Add spot';
-    draft = { type: p ? p.type : 'settlement', sel: p ? p.hexIds.slice() : [], res: null };
+    draft = { type: p ? p.type : 'settlement', sel: p ? p.hexIds.slice() : [], queue: [] };
     renderDialog();
     dlg.showModal();
   }
