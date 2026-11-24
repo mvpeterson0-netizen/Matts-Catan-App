@@ -5,23 +5,23 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#7a3b1d">
 <title>Matt's Catan Tracker</title>
-<link rel="stylesheet" href="style.css?v=8">
+<link rel="stylesheet" href="style.css?v=9">
 </head>
 <body>
 <header>
   <h1>Catan Tracker</h1>
-  <input id="playerName" aria-label="Your name" placeholder="Your name">
 </header>
 
 <main>
   <!-- PROPERTIES -->
   <section id="tab-props" class="tab active">
-    <p class="hint">Add each settlement or city and tap the hexes touching it. A hex you enter once is reused for every spot. Tap a hex chip to put the robber on it.</p>
-    <div id="propList"></div>
-    <button id="addProp" class="primary">+ Add settlement / city</button>
     <h3>Cards per roll</h3>
     <div id="payTable" class="card"></div>
     <div id="expected" class="card"></div>
+    <h3>Your settlements &amp; cities</h3>
+    <p class="hint">Add each settlement or city and tap the hexes touching it. A hex you enter once is reused for every spot. Tap a hex chip to put the robber on it.</p>
+    <div id="propList"></div>
+    <button id="addProp" class="primary">+ Add settlement / city</button>
     <button id="newGame" class="danger">Start new game</button>
   </section>
 
@@ -48,7 +48,7 @@
   </div>
 </dialog>
 
-<script src="logic.js?v=8"></script>
-<script src="app.js?v=8"></script>
+<script src="logic.js?v=9"></script>
+<script src="app.js?v=9"></script>
 </body>
 </html>

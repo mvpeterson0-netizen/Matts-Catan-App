@@ -28,8 +28,6 @@
   const pillsFor = (hand) => L.RESOURCES.filter((r) => hand[r] > 0).map((r) => resPill(r, hand[r])).join('') || '<span class="muted">nothing</span>';
   const numBadge = (n) => `<b class="${n === 6 || n === 8 ? 'red' : ''}">${n}</b>`;
 
-  $('#playerName').value = S.name;
-  $('#playerName').addEventListener('input', (e) => { S.name = e.target.value; save(); });
 
   // ---- Properties ----
   let editingId = null;
